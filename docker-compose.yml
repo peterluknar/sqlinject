@@ -8,6 +8,20 @@ services:
       MYSQL_PASSWORD: app
     ports:
       - "3306:3306"
+    # Come back on its own if the process dies (e.g. OOM under load) so `web`
+    # isn't left unable to resolve/reach `db`.
+    restart: unless-stopped
+    # Cap memory so MySQL can't consume the whole box and trigger the OOM-killer
+    # (which is what dropped `db` off the network under load).
+    mem_limit: 512m
+    # Tune for a tiny host with a tiny dataset (11 seeded events): small buffer
+    # pool, few connections, and drop performance_schema to reclaim ~memory. The
+    # data is ephemeral anyway, so relax fsync durability for less I/O load.
+    command:
+      - --innodb-buffer-pool-size=64M
+      - --max-connections=30
+      - --performance-schema=OFF
+      - --innodb-flush-log-at-trx-commit=2
     # No persistent storage: the DB starts empty every time and the app
     # re-seeds it on startup. Data lives only in the container's writable layer.
     healthcheck:
