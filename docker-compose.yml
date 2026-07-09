@@ -8,8 +8,8 @@ services:
       MYSQL_PASSWORD: app
     ports:
       - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
+    # No persistent storage: the DB starts empty every time and the app
+    # re-seeds it on startup. Data lives only in the container's writable layer.
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 5s
@@ -28,9 +28,13 @@ services:
       - "8088:8000"
     volumes:
       - .:/app
+    # Recover automatically if the app exits (e.g. it loses the DB connection
+    # when the DB crashes) and whenever the DB itself is restarted.
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+        restart: true
 
   # On-demand DAST scan. Not started by `docker compose up` — it only runs when
   # you explicitly select the "scan" profile (see command below). It targets the
@@ -64,6 +68,3 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-volumes:
-  db_data:
